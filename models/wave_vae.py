@@ -2,7 +2,10 @@ from ops import *
 import torch 
 import torch.nn as nn
 from torch.autograd import Variable
-
+from base_model import BaseModel
+import sys 
+sys.path.append("../options/")
+from base_options import BaseOptions
 class encoder(nn.Module):
     def __init__(self):
         super(encoder, self).__init__()
@@ -36,9 +39,20 @@ class encoder(nn.Module):
         o = i_h_+i_l_
         return o, i_l, i_h
 
-class wave_vae(nn.Module):
-    def __init__(self):
-        pass
+class wave_vae(BaseModel):
+    def __init__(self, opt):
+        super(wave_vae, self).__init__(self, opt)
+        self.encoder = encoder()
+    def name(self):
+        return 'wave_vae'
+    def forward(self,x):
+        self.set_input(x)
+        self.raw_input = Variable(self.raw_input)
+        self.reconstruct, self.l, self.h = self.encoder(self.raw_input)
+    def set_input(self, x):
+        self.raw_input = x
+        if self.gpu_ids:
+            self.raw_input = self.Tensor(self.raw_input)
 
 def test_encoder():
     e = encoder()
@@ -47,5 +61,10 @@ def test_encoder():
     o, l, h = e(x)
     print(o.size())
     print(l.size())
+def test_wave_vae():
+    opt = BaseOptions().parse()
+    wave_vae_model = wave_vae(opt)
+    x = torch.zeros((1,3, 224, 224))
+    wave_vae_model.forward(x)
 if __name__ == '__main__':
-    test_encoder()
+    test_wave_vae()
