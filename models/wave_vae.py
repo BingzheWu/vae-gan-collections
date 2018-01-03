@@ -41,22 +41,36 @@ class encoder(nn.Module):
 
 class wave_vae(BaseModel):
     def __init__(self, opt):
-        super(wave_vae, self).__init__(self, opt)
+        super(wave_vae, self).__init__(opt)
         self.encoder = encoder()
+        if self.opt.gpu_ids:
+            self.encoder = self.encoder.cuda()
+        self.criterionL1 = torch.nn.MSELoss()
+        self.optimizer = torch.optim.Adam(self.encoder.parameters(), lr = opt.lr, betas = (opt.beta1, 0.999))
     def name(self):
         return 'wave_vae'
     def forward(self,x):
-        self.set_input(x)
-        self.raw_input = Variable(self.raw_input)
+        self.set_input(x) 
         self.reconstruct, self.l, self.h = self.encoder(self.raw_input)
+    def backward(self, x):
+        self.forward(x)
+        self.loss_recon = self.criterionL1(self.reconstruct, self.raw_input)
+        self.loss_h = self.h.norm(1)
+        self.total_loss = self.loss_recon + self.loss_h
+        self.total_loss.backward()
+    def update(self, x):
+        self.optimizer.zero_grad()
+        self.backward(x)
+        self.optimizer.step()
     def set_input(self, x):
         self.raw_input = x
         if self.gpu_ids:
-            self.raw_input = self.Tensor(self.raw_input)
+            self.raw_input = self.raw_input.cuda()
+        self.raw_input = Variable(self.raw_input, requires_grad = False)
 
 def test_encoder():
     e = encoder()
-    x = torch.zeros((1,3, 224,224))
+    x = torch.ones((1,3, 224,224))
     x = Variable(x)
     o, l, h = e(x)
     print(o.size())
@@ -64,7 +78,8 @@ def test_encoder():
 def test_wave_vae():
     opt = BaseOptions().parse()
     wave_vae_model = wave_vae(opt)
-    x = torch.zeros((1,3, 224, 224))
-    wave_vae_model.forward(x)
+    for i in range(10):
+        x = torch.zeros((1,3, 224, 224))
+        wave_vae_model.update(x)
 if __name__ == '__main__':
     test_wave_vae()

@@ -1,7 +1,7 @@
 import os
 import torch
-class BaseModel():
-    def __init(self, opt,):
+class BaseModel(object):
+    def __init__(self, opt):
         self.opt = opt
         self.gpu_ids = opt.gpu_ids
         self.is_train = opt.is_train
