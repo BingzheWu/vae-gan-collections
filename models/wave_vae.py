@@ -1,11 +1,13 @@
-from ops import *
+from .ops import *
 import torch 
+import os
 import torch.nn as nn
 from torch.autograd import Variable
-from base_model import BaseModel
+from .base_model import BaseModel
 import sys 
+import torchvision
 sys.path.append("../options/")
-from base_options import BaseOptions
+#from base_options import BaseOptions
 class encoder(nn.Module):
     def __init__(self):
         super(encoder, self).__init__()
@@ -43,6 +45,7 @@ class wave_vae(BaseModel):
     def __init__(self, opt):
         super(wave_vae, self).__init__(opt)
         self.encoder = encoder()
+        self.opt = opt
         if self.opt.gpu_ids:
             self.encoder = self.encoder.cuda()
         self.criterionL1 = torch.nn.MSELoss()
@@ -50,12 +53,13 @@ class wave_vae(BaseModel):
     def name(self):
         return 'wave_vae'
     def forward(self,x):
-        self.set_input(x) 
+        self.set_input(x)
+        self.encoder.cuda()
         self.reconstruct, self.l, self.h = self.encoder(self.raw_input)
     def backward(self, x):
         self.forward(x)
         self.loss_recon = self.criterionL1(self.reconstruct, self.raw_input)
-        self.loss_h = self.h.norm(1)
+        self.loss_h = self.h.norm(2)
         self.total_loss = self.loss_recon + self.loss_h
         self.total_loss.backward()
     def update(self, x):
@@ -67,6 +71,17 @@ class wave_vae(BaseModel):
         if self.gpu_ids:
             self.raw_input = self.raw_input.cuda()
         self.raw_input = Variable(self.raw_input, requires_grad = False)
+    def save_models(self, epoch_label):
+        save_filename = '%s_net.pth'%(epoch_label)
+        save_path = os.path.join(self.save_dir, save_filename)
+        torch.save(self.encoder.cpu().state_dict(), save_path)
+    def save_imgs(self, epoch_label):
+        save_path = os.path.join(self.save_dir, 'vis_imgs')
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
+        torchvision.utils.save_image(self.l.data, os.path.join(save_path, "%s_l.png"%(epoch_label)))
+        torchvision.utils.save_image(self.h.data, os.path.join(save_path, "%s_h.png"%(epoch_label)))
+        torchvision.utils.save_image(self.reconstruct.data, os.path.join(save_path, "%s_reconstruct.png"%(epoch_label)))
 
 def test_encoder():
     e = encoder()

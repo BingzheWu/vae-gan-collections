@@ -16,6 +16,9 @@ class BaseOptions():
         self.parser.add_argument('--name', type = str, default = 'experiments_name', help = 'name of experiments')
         self.parser.add_argument('--checkpoint_dir', type = str, default = './checkpoints', help = "models dir")
         self.parser.add_argument('--is_train', action = 'store_true', help = "if is train")
+        self.parser.add_argument('--num_epochs', type = int, default = 10, help = "num of epochs to train")
+        self.parser.add_argument('--dataset_name', type = str, default = 'coco_obj_detect', help = "dataset used for training")
+        self.parser.add_argument('--annFile', type = str, help = 'path to annotation files')
     def parse(self):
         if not self.initialized:
             self.initialize()
