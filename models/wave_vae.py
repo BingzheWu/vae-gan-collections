@@ -17,7 +17,8 @@ class encoder(nn.Module):
             self.encoder1.add_module('encoder2', conv_block(16, 16, 3, 1, 1, name = 'encoder_2'))
         self.l = conv_block(16, 3, 3, 2, 1, name = 'l1')
         self.h = conv_block(16, 3, 3, 2, 1, name = 'l2')
-        self.upsample = upsmapleLayer(3, 16, upsample_type = 'bilinear')
+        self.upsample_l = upsmapleLayer(3, 16, upsample_type = 'basic')
+        self.upsample_h = upsmapleLayer(3, 16, upsample_type = 'basic')
         self.encoder_l = nn.Sequential()
         self.encoder_h = nn.Sequential()
         for i in range(3):
@@ -34,8 +35,8 @@ class encoder(nn.Module):
         x = self.encoder1(x)
         i_l = self.l(x)
         i_h = self.h(x)
-        i_l_ = self.upsample(i_l)
-        i_h_ = self.upsample(i_h)
+        i_l_ = self.upsample_l(i_l)
+        i_h_ = self.upsample_h(i_h)
         i_l_ = self.encoder_l(i_l_)
         i_h_ = self.encoder_h(i_h_)
         o = i_h_+i_l_
@@ -48,8 +49,9 @@ class wave_vae(BaseModel):
         self.opt = opt
         if self.opt.gpu_ids:
             self.encoder = self.encoder.cuda()
+        self.encoder.apply(weights_init_xavier)
         self.criterionL1 = torch.nn.MSELoss()
-        self.optimizer = torch.optim.Adam(self.encoder.parameters(), lr = opt.lr, betas = (opt.beta1, 0.999))
+        self.optimizer = torch.optim.SGD(self.encoder.parameters(), lr = opt.lr, momentum = 0.9, weight_decay = 0.0005)
     def name(self):
         return 'wave_vae'
     def forward(self,x):
@@ -60,7 +62,7 @@ class wave_vae(BaseModel):
         self.forward(x)
         self.loss_recon = self.criterionL1(self.reconstruct, self.raw_input)
         self.loss_h = self.h.norm(2)
-        self.total_loss = self.loss_recon + self.loss_h
+        self.total_loss = self.loss_recon + 0.0001*self.loss_h
         self.total_loss.backward()
     def update(self, x):
         self.optimizer.zero_grad()
@@ -75,6 +77,11 @@ class wave_vae(BaseModel):
         save_filename = '%s_net.pth'%(epoch_label)
         save_path = os.path.join(self.save_dir, save_filename)
         torch.save(self.encoder.cpu().state_dict(), save_path)
+    def load_models(self, epoch_label):
+        save_filename = '%s_net.pth'%(epoch_label)
+        save_path = os.path.join(self.save_dir, save_filename)
+        state_dict = torch.load(save_path)
+        self.encoder.load_state_dict(state_dict)        
     def save_imgs(self, epoch_label):
         save_path = os.path.join(self.save_dir, 'vis_imgs')
         if not os.path.exists(save_path):

@@ -4,10 +4,10 @@ import torchvision
 from torchvision.datasets import CocoDetection
 
 
-def make_dataset(opt, dataset_name, dataroot, annFile = None, imageSize = 300):
+def make_dataset(opt, dataset_name, dataroot, annFile = None, imageSize = 224):
     if dataset_name == 'coco_obj_detect':
         trans = torchvision.transforms
-        transform = trans.Compose([trans.Resize((imageSize, imageSize)), trans.ToTensor(), trans.Normalize((0,0,0),(255,255,255))])
+        transform = trans.Compose([trans.Resize((imageSize, imageSize)), trans.ToTensor()])
         dataset = CocoDetection(dataroot, annFile, transform)
         data_iter = torch.utils.data.DataLoader(dataset, batch_size = opt.batchSize, shuffle = True, num_workers = 1)
     return data_iter
